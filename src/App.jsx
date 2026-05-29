@@ -22,6 +22,7 @@ export default function App() {
     addMeal, removeMeal, toggleMeal,
     setWater,
     saveNote,
+    importData,
   } = usePlanner()
 
   const [toast, setToast] = useState(null)
@@ -36,6 +37,43 @@ export default function App() {
     showToast('บันทึกแล้ว ✓')
   }, [saveNote, showToast])
 
+  const handleExport = useCallback(() => {
+    try {
+      const dataStr = JSON.stringify(data, null, 2)
+      const dataBlob = new Blob([dataStr], { type: 'application/json' })
+      const url = URL.createObjectURL(dataBlob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `health-planner-backup-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      showToast('ส่งออกข้อมูลสำเร็จแล้ว 💾')
+    } catch (e) {
+      showToast('การส่งออกข้อมูลล้มเหลว ❌')
+    }
+  }, [data, showToast])
+
+  const handleImport = useCallback((e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result)
+        if (importData(parsed)) {
+          showToast('นำเข้าข้อมูลสำเร็จแล้ว 📂')
+        } else {
+          showToast('ไฟล์ข้อมูลไม่ถูกต้อง ❌')
+        }
+      } catch (err) {
+        showToast('ไฟล์ข้อมูลไม่ถูกต้อง ❌')
+      }
+    }
+    reader.readAsText(file)
+  }, [importData, showToast])
+
   const d = dayData(currentDate)
 
   return (
@@ -45,6 +83,8 @@ export default function App() {
         onPrev={prevDay}
         onNext={nextDay}
         onDateChange={setCurrentDate}
+        onExport={handleExport}
+        onImport={handleImport}
       />
 
       <SummaryBar exercises={d.exercises} meals={d.meals} water={d.water} />

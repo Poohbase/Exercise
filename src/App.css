@@ -342,3 +342,34 @@ label { font-size: .78rem; color: var(--text-muted); display: block; margin-bott
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Header Actions */
+.header-logo-section {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.header-btn {
+  padding: 6px 12px !important;
+  font-size: 0.8rem !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  background: var(--surface2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 8px;
+}
+.header-btn:hover {
+  background: var(--border) !important;
+  color: var(--text) !important;
+}
+.file-input-label input[type="file"] {
+  display: none;
+}

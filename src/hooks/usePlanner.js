@@ -1,25 +1,67 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function load() {
+function loadLocal() {
   try { return JSON.parse(localStorage.getItem('healthPlanner') || '{}') } catch { return {} }
+}
+
+function saveLocal(data) {
+  localStorage.setItem('healthPlanner', JSON.stringify(data))
 }
 
 function emptyDay() {
   return { exercises: [], meals: [], water: 0, note: '' }
 }
 
+async function apiGet(path) {
+  const res = await fetch(path)
+  if (!res.ok) throw new Error(res.status)
+  return res.json()
+}
+
+async function apiPut(date, day) {
+  await fetch(`/api/data/${date}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(day),
+  })
+}
+
+async function apiImport(dataObj) {
+  await fetch('/api/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dataObj),
+  })
+}
+
 export function usePlanner() {
   const [currentDate, setCurrentDate] = useState(todayStr)
-  const [data, setData] = useState(load)
+  const [data, setData] = useState(loadLocal)
 
-  const persist = useCallback((next) => {
+  // Load all data from backend on mount
+  useEffect(() => {
+    apiGet('/api/data')
+      .then(serverData => {
+        setData(prev => {
+          const merged = { ...prev, ...serverData }
+          saveLocal(merged)
+          return merged
+        })
+      })
+      .catch(() => {}) // fall back to localStorage if backend is unavailable
+  }, [])
+
+  const persist = useCallback((next, date, day) => {
     setData(prev => {
       const updated = typeof next === 'function' ? next(prev) : next
-      localStorage.setItem('healthPlanner', JSON.stringify(updated))
+      saveLocal(updated)
+      if (date && day) {
+        apiPut(date, day).catch(() => {})
+      }
       return updated
     })
   }, [])
@@ -27,11 +69,15 @@ export function usePlanner() {
   const dayData = (d = currentDate) => data[d] ?? emptyDay()
 
   const updateDay = useCallback((date, updater) => {
-    persist(prev => {
+    setData(prev => {
       const current = prev[date] ?? emptyDay()
-      return { ...prev, [date]: updater(current) }
+      const updated = updater(current)
+      const next = { ...prev, [date]: updated }
+      saveLocal(next)
+      apiPut(date, updated).catch(() => {})
+      return next
     })
-  }, [persist])
+  }, [])
 
   const addExercise = useCallback((item) => {
     updateDay(currentDate, d => ({ ...d, exercises: [...d.exercises, item] }))
@@ -85,6 +131,16 @@ export function usePlanner() {
     })
   }, [])
 
+  const importData = useCallback((newData) => {
+    if (newData && typeof newData === 'object') {
+      setData(newData)
+      saveLocal(newData)
+      apiImport(newData).catch(() => {})
+      return true
+    }
+    return false
+  }, [])
+
   return {
     currentDate, setCurrentDate,
     data,
@@ -94,5 +150,6 @@ export function usePlanner() {
     addMeal, removeMeal, toggleMeal,
     setWater,
     saveNote,
+    importData,
   }
 }
