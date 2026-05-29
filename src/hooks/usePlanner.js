@@ -17,8 +17,11 @@ export function usePlanner() {
   const [data, setData] = useState(load)
 
   const persist = useCallback((next) => {
-    setData(next)
-    localStorage.setItem('healthPlanner', JSON.stringify(next))
+    setData(prev => {
+      const updated = typeof next === 'function' ? next(prev) : next
+      localStorage.setItem('healthPlanner', JSON.stringify(updated))
+      return updated
+    })
   }, [])
 
   const dayData = (d = currentDate) => data[d] ?? emptyDay()
